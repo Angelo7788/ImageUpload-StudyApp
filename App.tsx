@@ -79,9 +79,22 @@ const App = () => {
     // that we can use to display the image to the user
     try {
       const imageUrl = await storage()
-        .ref('9CAD7F86-23D4-4DFA-8BB6-F5F6B53DB26D.jpg')
+        .ref('BBA822D5-AAF8-4F41-837A-E610D2821A0B.jpg')
         .getDownloadURL();
       setUrlImage(imageUrl);
+    } catch (e) {
+      console.log('getting download error:', e);
+      Alert.alert('Image name invalid');
+    }
+  };
+
+  const deleteImage = async () => {
+    try {
+      storage()
+        .ref('BBA822D5-AAF8-4F41-837A-E610D2821A0B.jpg')
+        .delete()
+        .then(() => Alert.alert('Image deleted'));
+      setUrlImage(null);
     } catch (e) {
       console.log('getting download error:', e);
       Alert.alert('Image name invalid');
@@ -113,6 +126,7 @@ const App = () => {
           <Image source={{uri: urlImage}} style={styles.imageBox} />
         ) : null}
       </View>
+      <Button title="delete image" onPress={() => deleteImage()} />
     </SafeAreaView>
   );
 };
