@@ -16,6 +16,7 @@ const App = () => {
   const [selectedPictureUri, setSelectedPictureUri] = useState<any>(null);
   const [uploading, setUploading] = useState(false);
   const [transferred, setTransferred] = useState(0);
+  const [urlImage, setUrlImage] = useState<any>(null);
 
   const selectImage = () => {
     const options: ImagePicker.ImageLibraryOptions = {
@@ -73,6 +74,20 @@ const App = () => {
     setSelectedPictureUri(null);
   };
 
+  const downloadImage = async () => {
+    // put the url ref of the image into the state
+    // that we can use to display the image to the user
+    try {
+      const imageUrl = await storage()
+        .ref('9CAD7F86-23D4-4DFA-8BB6-F5F6B53DB26D.jpg')
+        .getDownloadURL();
+      setUrlImage(imageUrl);
+    } catch (e) {
+      console.log('getting download error:', e);
+      Alert.alert('Image name invalid');
+    }
+  };
+
   return (
     <SafeAreaView style={styles.mainView}>
       <Text>Firebase Image</Text>
@@ -91,6 +106,12 @@ const App = () => {
         ) : (
           <Button title="upload image" onPress={() => uploadImage()} />
         )}
+      </View>
+      <Button title="download image" onPress={() => downloadImage()} />
+      <View>
+        {urlImage ? (
+          <Image source={{uri: urlImage}} style={styles.imageBox} />
+        ) : null}
       </View>
     </SafeAreaView>
   );
