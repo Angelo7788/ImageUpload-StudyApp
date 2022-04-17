@@ -16,9 +16,9 @@ const App = () => {
   const [selectedPictureUri, setSelectedPictureUri] = useState<any>(null);
   const [uploading, setUploading] = useState(false);
   const [transferred, setTransferred] = useState(0);
-  const [urlImage, setUrlImage] = useState<any>(null);
+  const [urlImage, setUrlImage] = useState<string | null>(null);
 
-  const selectImage = () => {
+  const selectImage: () => void = () => {
     const options: ImagePicker.ImageLibraryOptions = {
       selectionLimit: 0,
       mediaType: 'photo',
@@ -42,7 +42,7 @@ const App = () => {
     });
   };
 
-  const uploadImage = async () => {
+  const uploadImage: () => void = async () => {
     const {uri} = selectedPictureUri;
     const fileName: string = uri.substring(uri.lastIndexOf('/') + 1);
     // string.substring(start, end) end optional = rest of string
@@ -74,7 +74,7 @@ const App = () => {
     setSelectedPictureUri(null);
   };
 
-  const downloadImage = async () => {
+  const downloadImage: () => void = async () => {
     // put the url ref of the image into the state
     // that we can use to display the image to the user
     try {
@@ -88,7 +88,7 @@ const App = () => {
     }
   };
 
-  const deleteImage = async () => {
+  const deleteImage: () => void = async () => {
     try {
       storage()
         .ref('BBA822D5-AAF8-4F41-837A-E610D2821A0B.jpg')
