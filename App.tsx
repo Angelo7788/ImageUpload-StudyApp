@@ -1,6 +1,7 @@
-import React, {useState} from 'react';
+import React, {useEffect, useState} from 'react';
 import * as ImagePicker from 'react-native-image-picker';
 import storage from '@react-native-firebase/storage';
+import firestore from '@react-native-firebase/firestore';
 import {
   Alert,
   Button,
@@ -13,11 +14,21 @@ import {
 } from 'react-native';
 
 const App = () => {
+  const [usersData, setUsersData] = useState<any>();
+  const getProfileList = async () => {
+    await firestore()
+      .collection('imageList')
+      .doc('profileList')
+      .onSnapshot(doc => {
+        setUsersData(doc.data());
+      });
+  };
+
   const [selectedPictureUri, setSelectedPictureUri] = useState<any>(null);
   const [uploading, setUploading] = useState(false);
   const [transferred, setTransferred] = useState(0);
   const [urlImage, setUrlImage] = useState<string | null>(null);
-
+  //
   const selectImage: () => void = () => {
     const options: ImagePicker.ImageLibraryOptions = {
       selectionLimit: 0,
@@ -63,6 +74,7 @@ const App = () => {
     //allows you to hook into information such as the current upload progress
     try {
       await task;
+      saveImageNameToFirestore(fileName);
     } catch (e) {
       console.error(e);
     }
@@ -75,11 +87,19 @@ const App = () => {
   };
 
   const downloadImage: () => void = async () => {
+    // download the image name from firestore
+    const imageNameToDownload = await firestore()
+      .collection('imageList')
+      .doc('image1')
+      .get()
+      .then(documentSnapshot => {
+        return documentSnapshot.data();
+      });
     // put the url ref of the image into the state
     // that we can use to display the image to the user
     try {
       const imageUrl = await storage()
-        .ref('BBA822D5-AAF8-4F41-837A-E610D2821A0B.jpg')
+        .ref(`${imageNameToDownload!.name}`)
         .getDownloadURL();
       setUrlImage(imageUrl);
     } catch (e) {
@@ -101,6 +121,18 @@ const App = () => {
     }
   };
 
+  const saveImageNameToFirestore: (
+    imageNameToSave: string,
+  ) => void = imageNameToSave => {
+    firestore()
+      .collection('imageList')
+      .doc('image1')
+      .set({name: imageNameToSave})
+      .then(() => Alert.alert('imageName saved'));
+  };
+  useEffect(() => {
+    getProfileList();
+  }, []);
   return (
     <SafeAreaView style={styles.mainView}>
       <Text>Firebase Image</Text>
@@ -127,6 +159,7 @@ const App = () => {
         ) : null}
       </View>
       <Button title="delete image" onPress={() => deleteImage()} />
+      <Button title="Log" onPress={() => console.log('PROVA:', usersData)} />
     </SafeAreaView>
   );
 };
