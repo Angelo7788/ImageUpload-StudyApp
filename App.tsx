@@ -5,6 +5,7 @@ import firestore from '@react-native-firebase/firestore';
 import {
   Alert,
   Button,
+  FlatList,
   Image,
   Platform,
   SafeAreaView,
@@ -14,13 +15,31 @@ import {
 } from 'react-native';
 
 const App = () => {
-  const [usersData, setUsersData] = useState<any>();
+  const [usersData, setUsersData] = useState<any>([]);
+  // const getProfileList = async () => {
+  //   let users;
+  //   await firestore()
+  //     .collection('imageList')
+  //     .doc('profileList')
+  //     .onSnapshot(doc => {
+  //       setUsersData(doc.data());
+  //       users = doc.data();
+  //       console.log('Users:', users);
+  //     });
+  // };
+
   const getProfileList = async () => {
-    await firestore()
+    const prova = await firestore()
       .collection('imageList')
-      .doc('profileList')
-      .onSnapshot(doc => {
-        setUsersData(doc.data());
+      .onSnapshot(querySnapshot => {
+        const users = [];
+        querySnapshot.forEach(documentSnapshot => {
+          users.push({
+            ...documentSnapshot.data(),
+            key: documentSnapshot.id,
+          });
+        });
+        setUsersData(users);
       });
   };
 
@@ -29,7 +48,7 @@ const App = () => {
   const [transferred, setTransferred] = useState(0);
   const [urlImage, setUrlImage] = useState<string | null>(null);
   //
-  const selectImage: () => void = () => {
+  const selectImage: (user: string) => void = user => {
     const options: ImagePicker.ImageLibraryOptions = {
       selectionLimit: 0,
       mediaType: 'photo',
@@ -39,27 +58,31 @@ const App = () => {
     };
 
     ImagePicker.launchImageLibrary(options, response => {
-      console.log('Response = ', response);
-
       if (response.didCancel) {
         console.log('User cancelled image picker');
       } else if (response.errorCode) {
         console.log('ImagePicker Error: ', response.errorCode);
       } else {
         const source = {uri: response.assets![0].uri};
-        setSelectedPictureUri(source);
-        console.log('source:', source);
+        if (source !== undefined) {
+          const uri: string = source.uri;
+          setSelectedPictureUri(source);
+          uploadImage(user, uri);
+        }
       }
     });
   };
 
-  const uploadImage: () => void = async () => {
-    const {uri} = selectedPictureUri;
+  const uploadImage: (user: string, uri: string) => void = async (
+    user,
+    uri,
+  ) => {
+    // const {uri} = selectedPictureUri;
     const fileName: string = uri.substring(uri.lastIndexOf('/') + 1);
     // string.substring(start, end) end optional = rest of string
     // string.lastIndexOf(searchvalue, start) start optional
     // return a numeric position of the last searched value
-    const uploadUri = Platform.OS === 'ios' ? uri.replace('file://', '') : uri;
+    const uploadUri = Platform.OS === 'ios' ? uri!.replace('file://', '') : uri;
     // string.replace(searchValue, newValue)
     setUploading(true);
     setTransferred(0);
@@ -74,7 +97,7 @@ const App = () => {
     //allows you to hook into information such as the current upload progress
     try {
       await task;
-      saveImageNameToFirestore(fileName);
+      saveUserImageNameToFirestore(fileName, user);
     } catch (e) {
       console.error(e);
     }
@@ -121,37 +144,58 @@ const App = () => {
     }
   };
 
-  const saveImageNameToFirestore: (
+  const saveUserImageNameToFirestore: (
     imageNameToSave: string,
-  ) => void = imageNameToSave => {
+    docRef: string,
+  ) => void = (imageNameToSave, docRef) => {
     firestore()
       .collection('imageList')
-      .doc('image1')
-      .set({name: imageNameToSave})
+      .doc(`${docRef}`)
+      .update({image: imageNameToSave})
       .then(() => Alert.alert('imageName saved'));
   };
   useEffect(() => {
     getProfileList();
   }, []);
+
+  const renderItem = ({item}) => {
+    return (
+      <View style={styles.users}>
+        <Text>{`${item.key} ${item.age} years old`}</Text>
+        <Text>{item.image}</Text>
+        {/* {selectedPictureUri !== null ? (
+          <View style={styles.imageContainer}>
+            <Image
+              source={{uri: selectedPictureUri.uri}}
+              style={styles.imageBox}
+            />
+          </View>
+        ) : null} */}
+        {uploading && (
+          <View style={styles.uploadView}>
+            <Text>{`${transferred} %`}</Text>
+          </View>
+        )}
+        {item.image !== '' ? (
+          <Button title="update image" onPress={() => selectImage(item.key)} />
+        ) : (
+          <Button title="select image" onPress={() => selectImage(item.key)} />
+        )}
+        {/* <Button title="upload image" onPress={() => uploadImage(item.key)} /> */}
+      </View>
+    );
+  };
+
   return (
     <SafeAreaView style={styles.mainView}>
       <Text>Firebase Image</Text>
-      <Button title="select image" onPress={() => selectImage()} />
-      <View style={styles.imageContainer}>
-        {selectedPictureUri !== null ? (
-          <Image
-            source={{uri: selectedPictureUri.uri}}
-            style={styles.imageBox}
-          />
-        ) : null}
-        {uploading ? (
+      {/* {uploading ? (
           <View style={styles.uploadView}>
             <Text>{`${transferred} %`}</Text>
           </View>
         ) : (
-          <Button title="upload image" onPress={() => uploadImage()} />
-        )}
-      </View>
+          // <Button title="upload image" onPress={() => uploadImage()} />
+        )} */}
       <Button title="download image" onPress={() => downloadImage()} />
       <View>
         {urlImage ? (
@@ -160,6 +204,11 @@ const App = () => {
       </View>
       <Button title="delete image" onPress={() => deleteImage()} />
       <Button title="Log" onPress={() => console.log('PROVA:', usersData)} />
+      <FlatList
+        data={usersData}
+        keyExtractor={item => item.key}
+        renderItem={renderItem}
+      />
     </SafeAreaView>
   );
 };
@@ -181,6 +230,11 @@ const styles = StyleSheet.create({
     marginTop: 30,
     marginBottom: 50,
     alignItems: 'center',
+  },
+  users: {
+    borderWidth: 1,
+    margin: 5,
+    padding: 5,
   },
 });
 
