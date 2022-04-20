@@ -16,18 +16,7 @@ import {
 
 const App = () => {
   const [usersData, setUsersData] = useState<any>([]);
-  // const getProfileList = async () => {
-  //   let users;
-  //   await firestore()
-  //     .collection('imageList')
-  //     .doc('profileList')
-  //     .onSnapshot(doc => {
-  //       setUsersData(doc.data());
-  //       users = doc.data();
-  //       console.log('Users:', users);
-  //     });
-  // };
-
+  //
   const getProfileList = async () => {
     const prova = await firestore()
       .collection('imageList')
@@ -43,7 +32,6 @@ const App = () => {
       });
   };
 
-  const [selectedPictureUri, setSelectedPictureUri] = useState<any>(null);
   const [uploading, setUploading] = useState(false);
   const [transferred, setTransferred] = useState(0);
   const [urlImage, setUrlImage] = useState<string | null>(null);
@@ -66,7 +54,8 @@ const App = () => {
         const source = {uri: response.assets![0].uri};
         if (source !== undefined) {
           const uri: string = source.uri;
-          setSelectedPictureUri(source);
+          // setSelectedPictureUri(source);
+          // ifnwe want to save it into a state
           uploadImage(user, uri);
         }
       }
@@ -97,7 +86,8 @@ const App = () => {
     //allows you to hook into information such as the current upload progress
     try {
       await task;
-      saveUserImageNameToFirestore(fileName, user);
+      const imageUrl = await storage().ref(`${fileName}`).getDownloadURL();
+      saveUserImageNameToFirestore(fileName, user, imageUrl);
     } catch (e) {
       console.error(e);
     }
@@ -106,14 +96,14 @@ const App = () => {
       'Photo uploaded!',
       'Your photo has been uploaded to Firebase Cloud Storage!',
     );
-    setSelectedPictureUri(null);
+    // setSelectedPictureUri(null);
   };
 
-  const downloadImage: () => void = async () => {
+  const downloadImage: (userName: string) => void = async userName => {
     // download the image name from firestore
     const imageNameToDownload = await firestore()
       .collection('imageList')
-      .doc('image1')
+      .doc(`${userName}`)
       .get()
       .then(documentSnapshot => {
         return documentSnapshot.data();
@@ -122,7 +112,7 @@ const App = () => {
     // that we can use to display the image to the user
     try {
       const imageUrl = await storage()
-        .ref(`${imageNameToDownload!.name}`)
+        .ref(`${imageNameToDownload!.image}`)
         .getDownloadURL();
       setUrlImage(imageUrl);
     } catch (e) {
@@ -131,27 +121,47 @@ const App = () => {
     }
   };
 
-  const deleteImage: () => void = async () => {
+  const deleteImage: (
+    imageNameToDelete: string,
+    docRef: string,
+  ) => void = async (imageNameToDelete, docRef) => {
     try {
-      storage()
-        .ref('BBA822D5-AAF8-4F41-837A-E610D2821A0B.jpg')
+      const task = storage()
+        .ref(`${imageNameToDelete}`)
         .delete()
         .then(() => Alert.alert('Image deleted'));
+      task.catch(errorCode => {
+        Alert.alert('IMAGE NAME NOT VALID');
+        console.log('ERROR:', errorCode);
+      });
       setUrlImage(null);
     } catch (e) {
       console.log('getting download error:', e);
       Alert.alert('Image name invalid');
+    }
+    if (imageNameToDelete !== '') {
+      try {
+        firestore()
+          .collection('imageList')
+          .doc(`${docRef}`)
+          .update({image: '', imageUrl: ''})
+          .then(() => Alert.alert('imageName deleted'));
+      } catch (e) {
+        console.log('getting connection error:', e);
+        Alert.alert('Image name not deleted');
+      }
     }
   };
 
   const saveUserImageNameToFirestore: (
     imageNameToSave: string,
     docRef: string,
-  ) => void = (imageNameToSave, docRef) => {
+    imageUrl: string,
+  ) => void = (imageNameToSave, docRef, imageUrl) => {
     firestore()
       .collection('imageList')
       .doc(`${docRef}`)
-      .update({image: imageNameToSave})
+      .update({image: imageNameToSave, imageUrl: imageUrl})
       .then(() => Alert.alert('imageName saved'));
   };
   useEffect(() => {
@@ -163,14 +173,11 @@ const App = () => {
       <View style={styles.users}>
         <Text>{`${item.key} ${item.age} years old`}</Text>
         <Text>{item.image}</Text>
-        {/* {selectedPictureUri !== null ? (
+        {item.imageUrl !== '' ? (
           <View style={styles.imageContainer}>
-            <Image
-              source={{uri: selectedPictureUri.uri}}
-              style={styles.imageBox}
-            />
+            <Image source={{uri: item.imageUrl}} style={styles.imageBox} />
           </View>
-        ) : null} */}
+        ) : null}
         {uploading && (
           <View style={styles.uploadView}>
             <Text>{`${transferred} %`}</Text>
@@ -181,7 +188,12 @@ const App = () => {
         ) : (
           <Button title="select image" onPress={() => selectImage(item.key)} />
         )}
-        {/* <Button title="upload image" onPress={() => uploadImage(item.key)} /> */}
+        {item.image !== '' ? (
+          <Button
+            title="delete image"
+            onPress={() => deleteImage(item.image, item.key)}
+          />
+        ) : null}
       </View>
     );
   };
@@ -189,20 +201,12 @@ const App = () => {
   return (
     <SafeAreaView style={styles.mainView}>
       <Text>Firebase Image</Text>
-      {/* {uploading ? (
-          <View style={styles.uploadView}>
-            <Text>{`${transferred} %`}</Text>
-          </View>
-        ) : (
-          // <Button title="upload image" onPress={() => uploadImage()} />
-        )} */}
-      <Button title="download image" onPress={() => downloadImage()} />
+      {/* <Button title="download image" onPress={() => downloadImage()} /> */}
       <View>
         {urlImage ? (
           <Image source={{uri: urlImage}} style={styles.imageBox} />
         ) : null}
       </View>
-      <Button title="delete image" onPress={() => deleteImage()} />
       <Button title="Log" onPress={() => console.log('PROVA:', usersData)} />
       <FlatList
         data={usersData}
