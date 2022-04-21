@@ -6,22 +6,30 @@ import {
   Alert,
   Button,
   FlatList,
-  Image,
+  ListRenderItem,
   Platform,
   SafeAreaView,
   StyleSheet,
   Text,
   View,
 } from 'react-native';
+import ModalImage from './modalImage';
+
+export interface UserObj {
+  key: string;
+  image: string;
+  imageUrl: string;
+  age: number;
+}
 
 const App = () => {
-  const [usersData, setUsersData] = useState<any>([]);
+  const [usersData, setUsersData] = useState<UserObj[]>([]);
   //
   const getProfileList = async () => {
-    const prova = await firestore()
+    firestore()
       .collection('imageList')
       .onSnapshot(querySnapshot => {
-        const users = [];
+        const users: any[] = [];
         querySnapshot.forEach(documentSnapshot => {
           users.push({
             ...documentSnapshot.data(),
@@ -34,9 +42,15 @@ const App = () => {
 
   const [uploading, setUploading] = useState(false);
   const [transferred, setTransferred] = useState(0);
-  const [urlImage, setUrlImage] = useState<string | null>(null);
+  const [showImageModal, setShowImageModal] = useState(false);
+  const [user, setUser] = useState<UserObj>({
+    key: '',
+    image: '',
+    imageUrl: '',
+    age: 1,
+  });
   //
-  const selectImage: (user: string) => void = user => {
+  const selectImage: (_user: string) => void = _user => {
     const options: ImagePicker.ImageLibraryOptions = {
       selectionLimit: 0,
       mediaType: 'photo',
@@ -53,17 +67,17 @@ const App = () => {
       } else {
         const source = {uri: response.assets![0].uri};
         if (source !== undefined) {
-          const uri: string = source.uri;
+          const uri: any = source.uri;
           // setSelectedPictureUri(source);
-          // ifnwe want to save it into a state
-          uploadImage(user, uri);
+          // if we want to save it into a state
+          uploadImage(_user, uri);
         }
       }
     });
   };
 
   const uploadImage: (user: string, uri: string) => void = async (
-    user,
+    _user,
     uri,
   ) => {
     // const {uri} = selectedPictureUri;
@@ -87,7 +101,7 @@ const App = () => {
     try {
       await task;
       const imageUrl = await storage().ref(`${fileName}`).getDownloadURL();
-      saveUserImageNameToFirestore(fileName, user, imageUrl);
+      saveUserImageNameToFirestore(fileName, _user, imageUrl);
     } catch (e) {
       console.error(e);
     }
@@ -99,25 +113,45 @@ const App = () => {
     // setSelectedPictureUri(null);
   };
 
-  const downloadImage: (userName: string) => void = async userName => {
-    // download the image name from firestore
-    const imageNameToDownload = await firestore()
-      .collection('imageList')
-      .doc(`${userName}`)
-      .get()
-      .then(documentSnapshot => {
-        return documentSnapshot.data();
-      });
-    // put the url ref of the image into the state
-    // that we can use to display the image to the user
+  // if we want to download the image Url ref and put in a state
+
+  // const downloadImage: (userName: string) => void = async userName => {
+  //   // download the image name from firestore
+  //   const imageNameToDownload = await firestore()
+  //     .collection('imageList')
+  //     .doc(`${userName}`)
+  //     .get()
+  //     .then(documentSnapshot => {
+  //       return documentSnapshot.data();
+  //     });
+  //   // put the url ref of the image into the state
+  //   // that we can use to display the image to the user
+  //   try {
+  //     const imageUrl = await storage()
+  //       .ref(`${imageNameToDownload!.image}`)
+  //       .getDownloadURL();
+  //     setUrlImage(imageUrl);
+  //   } catch (e) {
+  //     console.log('getting download error:', e);
+  //     Alert.alert('Image name invalid');
+  //   }
+  // };
+
+  const changeImage: (imageNameToDelete: string, _user: string) => void = (
+    imageNameToDelete,
+    _user,
+  ) => {
     try {
-      const imageUrl = await storage()
-        .ref(`${imageNameToDownload!.image}`)
-        .getDownloadURL();
-      setUrlImage(imageUrl);
+      const task = storage()
+        .ref(`${imageNameToDelete}`)
+        .delete()
+        .then(() => selectImage(_user));
+      task.catch(errorCode => {
+        Alert.alert('IMAGE NAME NOT VALID');
+        console.log('ERROR:', errorCode);
+      });
     } catch (e) {
-      console.log('getting download error:', e);
-      Alert.alert('Image name invalid');
+      console.log('getting error:', e);
     }
   };
 
@@ -134,7 +168,7 @@ const App = () => {
         Alert.alert('IMAGE NAME NOT VALID');
         console.log('ERROR:', errorCode);
       });
-      setUrlImage(null);
+      // setUrlImage(null);
     } catch (e) {
       console.log('getting download error:', e);
       Alert.alert('Image name invalid');
@@ -168,23 +202,24 @@ const App = () => {
     getProfileList();
   }, []);
 
-  const renderItem = ({item}) => {
+  const renderItem: ListRenderItem<UserObj> = ({item}) => {
     return (
       <View style={styles.users}>
         <Text>{`${item.key} ${item.age} years old`}</Text>
         <Text>{item.image}</Text>
-        {item.imageUrl !== '' ? (
-          <View style={styles.imageContainer}>
-            <Image source={{uri: item.imageUrl}} style={styles.imageBox} />
-          </View>
-        ) : null}
         {uploading && (
           <View style={styles.uploadView}>
             <Text>{`${transferred} %`}</Text>
           </View>
         )}
         {item.image !== '' ? (
-          <Button title="update image" onPress={() => selectImage(item.key)} />
+          <Button
+            title="Show image"
+            onPress={() => {
+              setUser(item);
+              setShowImageModal(true);
+            }}
+          />
         ) : (
           <Button title="select image" onPress={() => selectImage(item.key)} />
         )}
@@ -194,6 +229,12 @@ const App = () => {
             onPress={() => deleteImage(item.image, item.key)}
           />
         ) : null}
+        <ModalImage
+          showImageModal={showImageModal}
+          setShowImageModal={setShowImageModal}
+          user={user}
+          changeImage={changeImage}
+        />
       </View>
     );
   };
@@ -201,12 +242,6 @@ const App = () => {
   return (
     <SafeAreaView style={styles.mainView}>
       <Text>Firebase Image</Text>
-      {/* <Button title="download image" onPress={() => downloadImage()} /> */}
-      <View>
-        {urlImage ? (
-          <Image source={{uri: urlImage}} style={styles.imageBox} />
-        ) : null}
-      </View>
       <Button title="Log" onPress={() => console.log('PROVA:', usersData)} />
       <FlatList
         data={usersData}
@@ -225,15 +260,6 @@ const styles = StyleSheet.create({
   },
   uploadView: {
     marginTop: 15,
-  },
-  imageBox: {
-    width: 300,
-    height: 300,
-  },
-  imageContainer: {
-    marginTop: 30,
-    marginBottom: 50,
-    alignItems: 'center',
   },
   users: {
     borderWidth: 1,
