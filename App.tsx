@@ -207,11 +207,6 @@ const App = () => {
       <View style={styles.users}>
         <Text>{`${item.key} ${item.age} years old`}</Text>
         <Text>{item.image}</Text>
-        {uploading && (
-          <View style={styles.uploadView}>
-            <Text>{`${transferred} %`}</Text>
-          </View>
-        )}
         {item.image !== '' ? (
           <Button
             title="Show image"
@@ -242,6 +237,11 @@ const App = () => {
   return (
     <SafeAreaView style={styles.mainView}>
       <Text>Firebase Image</Text>
+      {uploading && (
+        <View style={styles.uploadView}>
+          <Text>{`Loading ${transferred} %`}</Text>
+        </View>
+      )}
       <Button title="Log" onPress={() => console.log('PROVA:', usersData)} />
       <FlatList
         data={usersData}
