@@ -14,6 +14,7 @@ import {
   View,
 } from 'react-native';
 import ModalImage from './modalImage';
+import ModalStoreImage from './modalStoreImage';
 
 export interface UserObj {
   key: string;
@@ -43,6 +44,8 @@ const App = () => {
   const [uploading, setUploading] = useState(false);
   const [transferred, setTransferred] = useState(0);
   const [showImageModal, setShowImageModal] = useState(false);
+  const [modalImageFromStorageVisible, setModalImageFromStorageVisible] = useState(false);
+  const [imageUrlToShow, setImageUrlToShow] = useState('');
   const [user, setUser] = useState<UserObj>({
     key: '',
     image: '',
@@ -112,6 +115,13 @@ const App = () => {
     );
     // setSelectedPictureUri(null);
   };
+
+  const showImageFromStorage = async () => {
+    const imageUrl = await storage().ref(`DSCN6081.JPG`).getDownloadURL();
+    setImageUrlToShow(imageUrl);
+    setModalImageFromStorageVisible(true);
+    // console.log('URL:', imageUrl);
+  }
 
   // if we want to download the image Url ref and put in a state
 
@@ -243,11 +253,17 @@ const App = () => {
         </View>
       )}
       <Button title="Log" onPress={() => console.log('PROVA:', usersData)} />
+      <Button title="Image from storage" onPress={() => showImageFromStorage()} />
       <FlatList
         data={usersData}
         keyExtractor={item => item.key}
         renderItem={renderItem}
       />
+      <ModalStoreImage
+          showImageModal={modalImageFromStorageVisible}
+          setShowImageModal={setModalImageFromStorageVisible}
+          uriImage={imageUrlToShow}
+        />
     </SafeAreaView>
   );
 };
